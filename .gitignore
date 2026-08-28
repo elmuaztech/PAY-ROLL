@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.vercel
+
+# Environment variables & secrets (NEVER COMMIT)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary scratch scripts
+scratch/
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+*.log
