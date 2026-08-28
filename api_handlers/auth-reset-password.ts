@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { getDb, schema } from '../../src/db';
+import { getDb, schema } from '../src/db';
 import { eq } from 'drizzle-orm';
-import { parseJsonBody, sendJson, sendError } from '../utils';
-import { hashPassword } from '../../src/auth/password';
-import { getStoredResetCode, clearResetCode } from './forgot-password';
+import { parseJsonBody, sendJson, sendError } from './utils';
+import { hashPassword } from '../src/auth/password';
+import { getStoredResetCode, clearResetCode } from './auth-forgot-password';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   if (req.method !== 'POST') {
@@ -73,7 +73,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       message: 'Password updated successfully. You can now sign in with your new password.'
     });
   } catch (err: any) {
-    console.error('API Error in /api/auth/reset-password:', err);
+    console.error('API Error in auth-reset-password:', err);
     return sendError(res, 500, 'Internal server error while resetting password', 'SERVER_ERROR', err?.message);
   }
 }

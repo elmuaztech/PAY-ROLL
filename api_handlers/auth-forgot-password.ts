@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { getDb, schema } from '../../src/db';
+import { getDb, schema } from '../src/db';
 import { eq } from 'drizzle-orm';
-import { parseJsonBody, sendJson, sendError } from '../utils';
+import { parseJsonBody, sendJson, sendError } from './utils';
 
 // In-memory token storage for reset verification codes (key: email, value: { code, expiresAt })
 const resetCodesMap = new Map<string, { code: string; expiresAt: number }>();
@@ -69,10 +69,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return sendJson(res, 200, {
       message: `Verification code generated successfully. For testing/demo, your code is ${resetCode}`,
       email: normalizedEmail,
-      resetCode // Provided for quick copy/autofill in UI
+      resetCode
     });
   } catch (err: any) {
-    console.error('API Error in /api/auth/forgot-password:', err);
+    console.error('API Error in auth-forgot-password:', err);
     return sendError(res, 500, 'Internal server error while requesting password reset', 'SERVER_ERROR', err?.message);
   }
 }

@@ -1,10 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { getDb, schema } from '../../src/db';
+import { getDb, schema } from '../src/db';
 import { eq } from 'drizzle-orm';
-import { parseJsonBody, sendJson, sendError } from '../utils';
-import { runPayrollEngine } from '../../src/payroll/engine/payrollCalculator';
-import { validateRunStatusTransition } from '../../src/payroll/engine/runStatusStateMachine';
-import { requireAuth } from '../../src/auth/requireAuth';
+import { parseJsonBody, sendJson, sendError } from './utils';
+import { runPayrollEngine } from '../src/payroll/engine/payrollCalculator';
+import { validateRunStatusTransition } from '../src/payroll/engine/runStatusStateMachine';
+import { requireAuth } from '../src/auth/requireAuth';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   const method = req.method || 'GET';

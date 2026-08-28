@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { getDb, schema } from '../../src/db';
+import { getDb, schema } from '../src/db';
 import { eq } from 'drizzle-orm';
-import { parseJsonBody, sendJson, sendError } from '../utils';
-import { requireAuth } from '../../src/auth/requireAuth';
+import { parseJsonBody, sendJson, sendError } from './utils';
+import { requireAuth } from '../src/auth/requireAuth';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   const method = req.method || 'GET';

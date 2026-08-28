@@ -1,10 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { getDb, schema } from '../../src/db';
+import { getDb, schema } from '../src/db';
 import { eq } from 'drizzle-orm';
-import { parseJsonBody, sendJson, sendError } from '../utils';
-import { verifyPassword } from '../../src/auth/password';
-import { createSessionToken, setSessionCookie } from '../../src/auth/session';
-import { sanitizeUserOutput } from '../../src/utils/masking';
+import { parseJsonBody, sendJson, sendError } from './utils';
+import { verifyPassword } from '../src/auth/password';
+import { createSessionToken, setSessionCookie } from '../src/auth/session';
+import { sanitizeUserOutput } from '../src/utils/masking';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   if (req.method !== 'POST') {
@@ -63,7 +63,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       token
     });
   } catch (err: any) {
-    console.error('API Error in /api/auth/login:', err);
+    console.error('API Error in login:', err);
     return sendError(res, 500, 'Internal Server Error during login', 'SERVER_ERROR', err?.message);
   }
 }

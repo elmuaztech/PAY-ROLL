@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getAuthSession, UserSessionPayload } from './session';
-import { sendError } from '../../api/utils';
+import { sendError } from '../../api_handlers/utils';
 
 export function requireAuth(
   req: IncomingMessage,
