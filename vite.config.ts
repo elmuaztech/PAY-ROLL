@@ -93,7 +93,8 @@ function apiDevPlugin(): Plugin {
 export default defineConfig({
   plugins: [react(), apiDevPlugin()],
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 2000,
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks: {
