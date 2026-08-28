@@ -4,8 +4,7 @@ import {
   Position,
   Allowance,
   Deduction,
-  PayrollPeriod,
-  PayrollRecord
+  PayrollPeriod
 } from '../types';
 
 export interface ApiErrorFormat {
@@ -22,11 +21,29 @@ export interface ApiResponse<T> {
 }
 
 function getErrorMessage(result: any, defaultMsg: string): string {
-  if (result.error) {
+  if (result && result.error) {
     if (typeof result.error === 'string') return result.error;
     if (typeof result.error === 'object' && result.error.message) return result.error.message;
   }
-  return result.message || defaultMsg;
+  return (result && result.message) || defaultMsg;
+}
+
+async function safeFetchJson<T = any>(url: string, init?: RequestInit): Promise<ApiResponse<T>> {
+  const res = await fetch(url, init);
+  const text = await res.text();
+  let result: ApiResponse<T>;
+  try {
+    result = text ? JSON.parse(text) : {};
+  } catch (err) {
+    if (!res.ok) {
+      throw new Error(`Server endpoint returned status ${res.status}: ${res.statusText}`);
+    }
+    throw new Error('Invalid server response format.');
+  }
+  if (!res.ok || result.error) {
+    throw new Error(getErrorMessage(result, `Request failed with status ${res.status}`));
+  }
+  return result;
 }
 
 // ==================================================
@@ -34,58 +51,55 @@ function getErrorMessage(result: any, defaultMsg: string): string {
 // ==================================================
 
 export async function setupAdminApi(data: { fullName: string; email: string; password: string; setupSecret?: string }): Promise<any> {
-  const res = await fetch('/api/auth/setup', {
+  const result = await safeFetchJson<any>('/api/auth/setup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to initialize administrator'));
   return result.data || result;
 }
 
 export async function loginApi(data: { email: string; password: string }): Promise<any> {
-  const res = await fetch('/api/auth/login', {
+  const result = await safeFetchJson<any>('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Login failed'));
   return result;
 }
 
 export async function forgotPasswordApi(email: string): Promise<any> {
-  const res = await fetch('/api/auth/forgot-password', {
+  const result = await safeFetchJson<any>('/api/auth/forgot-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email })
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to request password reset code'));
   return result;
 }
 
 export async function resetPasswordApi(data: { email: string; resetCode: string; newPassword: string }): Promise<any> {
-  const res = await fetch('/api/auth/reset-password', {
+  const result = await safeFetchJson<any>('/api/auth/reset-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to reset password'));
   return result;
 }
 
 export async function logoutApi(): Promise<void> {
-  await fetch('/api/auth/logout', { method: 'POST' });
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (e) {
+    // Ignore logout errors
+  }
 }
 
 export async function fetchCurrentUserApi(): Promise<any | null> {
   try {
     const res = await fetch('/api/auth/me');
     if (!res.ok) return null;
-    const result: ApiResponse<any> = await res.json();
+    const text = await res.text();
+    const result: ApiResponse<any> = JSON.parse(text);
     return result.data || (result as any).user || null;
   } catch (err) {
     return null;
@@ -94,8 +108,7 @@ export async function fetchCurrentUserApi(): Promise<any | null> {
 
 export async function fetchUsersApi(): Promise<any[]> {
   try {
-    const res = await fetch('/api/users');
-    const result: ApiResponse<any[]> = await res.json();
+    const result = await safeFetchJson<any[]>('/api/users');
     return result.data || [];
   } catch (err) {
     return [];
@@ -103,13 +116,11 @@ export async function fetchUsersApi(): Promise<any[]> {
 }
 
 export async function createUserApi(userData: { fullName: string; email: string; password: string; role: string }): Promise<any> {
-  const res = await fetch('/api/users', {
+  const result = await safeFetchJson<any>('/api/users', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(userData)
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to create user'));
   return result.data;
 }
 
@@ -119,8 +130,7 @@ export async function createUserApi(userData: { fullName: string; email: string;
 
 export async function fetchDepartmentsApi(): Promise<Department[]> {
   try {
-    const res = await fetch('/api/departments');
-    const result: ApiResponse<Department[]> = await res.json();
+    const result = await safeFetchJson<Department[]>('/api/departments');
     return result.data || [];
   } catch (err) {
     console.warn('Departments fetch fallback:', err);
@@ -129,40 +139,33 @@ export async function fetchDepartmentsApi(): Promise<Department[]> {
 }
 
 export async function createDepartmentApi(deptData: { code: string; name: string; description?: string }): Promise<Department> {
-  const res = await fetch('/api/departments', {
+  const result = await safeFetchJson<Department>('/api/departments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(deptData)
   });
-  const result: ApiResponse<Department> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to create department'));
   return result.data!;
 }
 
 export async function updateDepartmentApi(id: string, deptData: { code?: string; name?: string; description?: string }): Promise<Department> {
-  const res = await fetch('/api/departments', {
+  const result = await safeFetchJson<Department>('/api/departments', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, ...deptData })
   });
-  const result: ApiResponse<Department> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to update department'));
   return result.data!;
 }
 
 export async function deleteDepartmentApi(id: string): Promise<void> {
-  const res = await fetch(`/api/departments?id=${encodeURIComponent(id)}`, {
+  await safeFetchJson<any>(`/api/departments?id=${encodeURIComponent(id)}`, {
     method: 'DELETE'
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to delete department'));
 }
 
 export async function fetchPositionsApi(departmentId?: string): Promise<Position[]> {
   try {
     const url = departmentId ? `/api/positions?departmentId=${encodeURIComponent(departmentId)}` : '/api/positions';
-    const res = await fetch(url);
-    const result: ApiResponse<Position[]> = await res.json();
+    const result = await safeFetchJson<Position[]>(url);
     return result.data || [];
   } catch (err) {
     console.warn('Positions fetch fallback:', err);
@@ -171,33 +174,27 @@ export async function fetchPositionsApi(departmentId?: string): Promise<Position
 }
 
 export async function createPositionApi(posData: { title: string; departmentId?: string; gradeLevel?: string; description?: string }): Promise<Position> {
-  const res = await fetch('/api/positions', {
+  const result = await safeFetchJson<Position>('/api/positions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(posData)
   });
-  const result: ApiResponse<Position> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to create position'));
   return result.data!;
 }
 
 export async function updatePositionApi(id: string, posData: { title?: string; departmentId?: string; gradeLevel?: string; description?: string }): Promise<Position> {
-  const res = await fetch('/api/positions', {
+  const result = await safeFetchJson<Position>('/api/positions', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, ...posData })
   });
-  const result: ApiResponse<Position> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to update position'));
   return result.data!;
 }
 
 export async function deletePositionApi(id: string): Promise<void> {
-  const res = await fetch(`/api/positions?id=${encodeURIComponent(id)}`, {
+  await safeFetchJson<any>(`/api/positions?id=${encodeURIComponent(id)}`, {
     method: 'DELETE'
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to delete position'));
 }
 
 // ==================================================
@@ -206,9 +203,7 @@ export async function deletePositionApi(id: string): Promise<void> {
 
 export async function fetchEmployeesApi(): Promise<Employee[]> {
   try {
-    const res = await fetch('/api/employees');
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    const result: ApiResponse<any[]> = await res.json();
+    const result = await safeFetchJson<any[]>('/api/employees');
     if (result.data) {
       return result.data.map(item => ({
         id: item.id,
@@ -239,9 +234,8 @@ export async function fetchEmployeesApi(): Promise<Employee[]> {
 
 export async function fetchEmployeeByIdApi(id: string): Promise<Employee | null> {
   try {
-    const res = await fetch(`/api/employees?id=${encodeURIComponent(id)}`);
-    const result: ApiResponse<any> = await res.json();
-    if (!res.ok || !result.data) return null;
+    const result = await safeFetchJson<any>(`/api/employees?id=${encodeURIComponent(id)}`);
+    if (!result.data) return null;
     const item = result.data;
     return {
       id: item.id,
@@ -268,13 +262,11 @@ export async function fetchEmployeeByIdApi(id: string): Promise<Employee | null>
 }
 
 export async function createEmployeeApi(employeeData: Omit<Employee, 'id' | 'createdAt'>): Promise<Employee> {
-  const res = await fetch('/api/employees', {
+  const result = await safeFetchJson<any>('/api/employees', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(employeeData)
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to register employee in database'));
   const item = result.data;
   return {
     id: item.id,
@@ -298,23 +290,19 @@ export async function createEmployeeApi(employeeData: Omit<Employee, 'id' | 'cre
 }
 
 export async function updateEmployeeApi(id: string, employeeData: Partial<Employee>): Promise<void> {
-  const res = await fetch('/api/employees', {
+  await safeFetchJson<any>('/api/employees', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, ...employeeData })
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to update employee record'));
 }
 
 export async function deactivateEmployeeApi(id: string): Promise<void> {
-  const res = await fetch('/api/employees', {
+  await safeFetchJson<any>('/api/employees', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id })
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to deactivate employee record'));
 }
 
 // ==================================================
@@ -323,8 +311,7 @@ export async function deactivateEmployeeApi(id: string): Promise<void> {
 
 export async function fetchAllowancesApi(): Promise<Allowance[]> {
   try {
-    const res = await fetch('/api/allowances');
-    const result: ApiResponse<any[]> = await res.json();
+    const result = await safeFetchJson<any[]>('/api/allowances');
     if (result.data) {
       return result.data.map(item => ({
         id: item.id,
@@ -344,7 +331,7 @@ export async function fetchAllowancesApi(): Promise<Allowance[]> {
 }
 
 export async function createAllowanceApi(data: Omit<Allowance, 'id'>): Promise<Allowance> {
-  const res = await fetch('/api/allowances', {
+  const result = await safeFetchJson<any>('/api/allowances', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -355,8 +342,6 @@ export async function createAllowanceApi(data: Omit<Allowance, 'id'>): Promise<A
       status: data.status === 'Inactive' ? 'INACTIVE' : 'ACTIVE'
     })
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to create allowance rule'));
   const item = result.data;
   return {
     id: item.id,
@@ -372,8 +357,7 @@ export async function createAllowanceApi(data: Omit<Allowance, 'id'>): Promise<A
 
 export async function fetchDeductionsApi(): Promise<Deduction[]> {
   try {
-    const res = await fetch('/api/deductions');
-    const result: ApiResponse<any[]> = await res.json();
+    const result = await safeFetchJson<any[]>('/api/deductions');
     if (result.data) {
       return result.data.map(item => ({
         id: item.id,
@@ -393,7 +377,7 @@ export async function fetchDeductionsApi(): Promise<Deduction[]> {
 }
 
 export async function createDeductionApi(data: Omit<Deduction, 'id'>): Promise<Deduction> {
-  const res = await fetch('/api/deductions', {
+  const result = await safeFetchJson<any>('/api/deductions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -406,8 +390,6 @@ export async function createDeductionApi(data: Omit<Deduction, 'id'>): Promise<D
       status: data.status === 'Inactive' ? 'INACTIVE' : 'ACTIVE'
     })
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to create deduction rule'));
   const item = result.data;
   return {
     id: item.id,
@@ -423,8 +405,7 @@ export async function createDeductionApi(data: Omit<Deduction, 'id'>): Promise<D
 
 export async function fetchPayrollPeriodsApi(): Promise<PayrollPeriod[]> {
   try {
-    const res = await fetch('/api/payroll-periods');
-    const result: ApiResponse<PayrollPeriod[]> = await res.json();
+    const result = await safeFetchJson<PayrollPeriod[]>('/api/payroll-periods');
     return result.data || [];
   } catch (err) {
     return [];
@@ -432,13 +413,11 @@ export async function fetchPayrollPeriodsApi(): Promise<PayrollPeriod[]> {
 }
 
 export async function createPayrollPeriodApi(data: { name: string; periodStart: string; periodEnd: string; payDate: string }): Promise<PayrollPeriod> {
-  const res = await fetch('/api/payroll-periods', {
+  const result = await safeFetchJson<PayrollPeriod>('/api/payroll-periods', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  const result: ApiResponse<PayrollPeriod> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to create payroll period'));
   return result.data!;
 }
 
@@ -447,32 +426,27 @@ export async function createPayrollPeriodApi(data: { name: string; periodStart: 
 // ==================================================
 
 export async function generatePayrollPreviewApi(payrollPeriodId: string, employeeId?: string): Promise<any> {
-  const res = await fetch('/api/payroll/preview', {
+  const result = await safeFetchJson<any>('/api/payroll/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ payrollPeriodId, employeeId })
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to generate payroll preview'));
   return result.data;
 }
 
 export async function persistPayrollRunsApi(payrollPeriodId: string, employeeId?: string, isPreview: boolean = false): Promise<any> {
-  const res = await fetch('/api/payroll/runs', {
+  const result = await safeFetchJson<any>('/api/payroll/runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ payrollPeriodId, employeeId, isPreview })
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to persist payroll run'));
   return result.data;
 }
 
 export async function fetchPayrollRunsApi(payrollPeriodId?: string): Promise<any[]> {
   try {
     const url = payrollPeriodId ? `/api/payroll/runs?payrollPeriodId=${encodeURIComponent(payrollPeriodId)}` : '/api/payroll/runs';
-    const res = await fetch(url);
-    const result: ApiResponse<any[]> = await res.json();
+    const result = await safeFetchJson<any[]>(url);
     return result.data || [];
   } catch (err) {
     return [];
@@ -481,9 +455,8 @@ export async function fetchPayrollRunsApi(payrollPeriodId?: string): Promise<any
 
 export async function fetchPayrollRunByIdApi(id: string): Promise<any | null> {
   try {
-    const res = await fetch(`/api/payroll/runs?id=${encodeURIComponent(id)}`);
-    const result: ApiResponse<any> = await res.json();
-    if (!res.ok || !result.data) return null;
+    const result = await safeFetchJson<any>(`/api/payroll/runs?id=${encodeURIComponent(id)}`);
+    if (!result.data) return null;
     return result.data;
   } catch (err) {
     return null;
@@ -491,11 +464,9 @@ export async function fetchPayrollRunByIdApi(id: string): Promise<any | null> {
 }
 
 export async function updatePayrollRunStatusApi(id: string, status: string): Promise<void> {
-  const res = await fetch('/api/payroll/runs', {
+  await safeFetchJson<any>('/api/payroll/runs', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, status })
   });
-  const result: ApiResponse<any> = await res.json();
-  if (!res.ok || result.error) throw new Error(getErrorMessage(result, 'Failed to update payroll run status'));
 }
