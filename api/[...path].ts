@@ -88,6 +88,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return sendError(res, 404, 'API Route Not Found', 'NOT_FOUND');
   } catch (err: any) {
     console.error('Master Vercel Router Error:', err);
-    return sendError(res, 500, 'Internal Server Error', 'SERVER_ERROR', err?.message);
+    return sendError(res, 500, err?.message || 'Internal Server Error', 'SERVER_ERROR', err?.stack);
   }
 }

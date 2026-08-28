@@ -13,7 +13,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
   const db = getDb();
   if (!db) {
-    return sendError(res, 533, 'Database connection is not configured.', 'DATABASE_UNCONFIGURED');
+    return sendError(res, 533, 'Database connection is not configured on server (DATABASE_URL missing).', 'DATABASE_UNCONFIGURED');
   }
 
   try {
@@ -48,14 +48,18 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const token = createSessionToken(user);
     setSessionCookie(res, token);
 
-    // Audit log login success
-    await db.insert(schema.auditLogs).values({
-      eventType: 'USER_LOGIN_SUCCESS',
-      entityType: 'USER',
-      entityId: user.id,
-      userId: user.id,
-      details: JSON.stringify({ email: user.email, role: user.role })
-    });
+    // Audit log login success (non-blocking safe wrap)
+    try {
+      await db.insert(schema.auditLogs).values({
+        eventType: 'USER_LOGIN_SUCCESS',
+        entityType: 'USER',
+        entityId: user.id,
+        userId: user.id,
+        details: JSON.stringify({ email: user.email, role: user.role })
+      });
+    } catch (auditErr) {
+      console.warn('Non-blocking audit log warning:', auditErr);
+    }
 
     return sendJson(res, 200, {
       message: 'Login successful.',
@@ -64,6 +68,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     });
   } catch (err: any) {
     console.error('API Error in login:', err);
-    return sendError(res, 500, 'Internal Server Error during login', 'SERVER_ERROR', err?.message);
+    return sendError(res, 500, err?.message || 'Internal Server Error during login', 'SERVER_ERROR', err?.stack);
   }
 }
