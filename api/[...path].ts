@@ -23,8 +23,29 @@ import auditLogsHandler from '../api_handlers/audit-logs';
 import { sendError } from '../api_handlers/utils';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
-  const url = req.url || '';
-  const pathname = url.split('?')[0];
+  // CORS Preflight handling
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    return res.end();
+  }
+
+  // Resolve path from various Vercel / Node routing formats
+  let pathname = (req.url || '').split('?')[0];
+
+  const queryPath = (req as any).query?.path;
+  if (queryPath) {
+    const subpath = Array.isArray(queryPath) ? queryPath.join('/') : queryPath;
+    pathname = `/api/${subpath}`;
+  } else {
+    const matchedPath = req.headers['x-matched-path'] as string;
+    if (matchedPath && matchedPath.startsWith('/api')) {
+      pathname = matchedPath.split('?')[0];
+    }
+  }
 
   try {
     if (pathname === '/api/auth/setup' || pathname.endsWith('/auth/setup')) {
@@ -85,7 +106,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return await payrollRulesHandler(req, res);
     }
 
-    return sendError(res, 404, 'API Route Not Found', 'NOT_FOUND');
+    return sendError(res, 404, `API Route Not Found: ${pathname}`, 'NOT_FOUND');
   } catch (err: any) {
     console.error('Master Vercel Router Error:', err);
     return sendError(res, 500, err?.message || 'Internal Server Error', 'SERVER_ERROR', err?.stack);
