@@ -11,6 +11,7 @@ import payrollPeriodsHandler from '../api_handlers/payroll-periods';
 import payrollPreviewHandler from '../api_handlers/payroll-preview';
 import payrollRunsHandler from '../api_handlers/payroll-runs';
 import payrollRulesHandler from '../api_handlers/payroll-rules';
+import healthHandler from '../api_handlers/health';
 
 import authSetupHandler from '../api_handlers/auth-setup';
 import authLoginHandler from '../api_handlers/auth-login';
@@ -48,6 +49,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   try {
+    if (pathname === '/api/health' || pathname.endsWith('/health')) {
+      return await healthHandler(req, res);
+    }
     if (pathname === '/api/auth/setup' || pathname.endsWith('/auth/setup')) {
       return await authSetupHandler(req, res);
     }

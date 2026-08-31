@@ -120,3 +120,14 @@ export function sendError(
   res.statusCode = statusCode;
   res.end(JSON.stringify(payload));
 }
+
+export function extractErrorMessage(err: any): string {
+  if (!err) return 'Unknown error occurred.';
+  const causeMsg = err.cause?.message || (typeof err.cause === 'string' ? err.cause : null);
+  if (causeMsg && err.message) {
+    return `${err.message} (Database Detail: ${causeMsg})`;
+  }
+  if (err.message) return err.message;
+  if (typeof err === 'string') return err;
+  return 'Internal Server Error';
+}

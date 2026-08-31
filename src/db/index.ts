@@ -9,11 +9,7 @@ dotenv.config();
  * Initializes Neon PostgreSQL connection using serverless HTTP protocol.
  * Returns null if DATABASE_URL is not yet provided in the environment.
  */
-let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
-
 export function getDb() {
-  if (dbInstance) return dbInstance;
-
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString || connectionString.includes('ep-example-123456')) {
     return null;
@@ -21,12 +17,19 @@ export function getDb() {
 
   try {
     const client = neon(connectionString);
-    dbInstance = drizzle(client, { schema });
-    return dbInstance;
+    return drizzle(client, { schema });
   } catch (error) {
     console.error('Failed to initialize Neon PostgreSQL HTTP connection:', error);
     return null;
   }
+}
+
+export function getRawSql() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString || connectionString.includes('ep-example-123456')) {
+    return null;
+  }
+  return neon(connectionString);
 }
 
 export { schema };

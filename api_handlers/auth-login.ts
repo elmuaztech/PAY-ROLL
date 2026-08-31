@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getDb, schema } from '../src/db';
 import { eq } from 'drizzle-orm';
-import { parseJsonBody, sendJson, sendError, handleCors } from './utils';
+import { parseJsonBody, sendJson, sendError, handleCors, extractErrorMessage } from './utils';
 import { verifyPassword } from '../src/auth/password';
 import { createSessionToken, setSessionCookie } from '../src/auth/session';
 import { sanitizeUserOutput } from '../src/utils/masking';
@@ -70,6 +70,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     });
   } catch (err: any) {
     console.error('API Error in login:', err);
-    return sendError(res, 500, err?.message || 'Internal Server Error during login', 'SERVER_ERROR', err?.stack);
+    return sendError(res, 500, extractErrorMessage(err), 'SERVER_ERROR', err?.stack);
   }
 }
+
