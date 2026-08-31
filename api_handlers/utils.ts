@@ -27,9 +27,24 @@ export async function parseJsonBody(req: IncomingMessage): Promise<any> {
   });
 }
 
+export function handleCors(req: IncomingMessage, res: ServerResponse): boolean {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.end();
+    return true;
+  }
+  return false;
+}
+
 export function sendJson(res: ServerResponse, statusCode: number, data: any) {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.end(JSON.stringify(data));
 }
 
@@ -42,6 +57,7 @@ export function sendError(
 ) {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.end(
     JSON.stringify({
       error: {

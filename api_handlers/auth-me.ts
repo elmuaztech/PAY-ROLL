@@ -1,11 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getDb, schema } from '../src/db';
 import { eq } from 'drizzle-orm';
-import { sendJson, sendError } from './utils';
+import { sendJson, sendError, handleCors } from './utils';
 import { getAuthSession } from '../src/auth/session';
 import { sanitizeUserOutput } from '../src/utils/masking';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  if (handleCors(req, res)) return;
+
   if (req.method !== 'GET') {
     return sendError(res, 405, 'Method Not Allowed', 'METHOD_NOT_ALLOWED');
   }
