@@ -28,8 +28,44 @@ function getErrorMessage(result: any, defaultMsg: string): string {
   return (result && result.message) || defaultMsg;
 }
 
+const TOKEN_KEY = 'payroll_auth_token';
+
+function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredToken(token?: string) {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // Ignore storage issues
+  }
+}
+
 async function safeFetchJson<T = any>(url: string, init?: RequestInit): Promise<ApiResponse<T>> {
-  const res = await fetch(url, init);
+  const token = getStoredToken();
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> || {})
+  };
+
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, {
+    credentials: 'include',
+    ...init,
+    headers
+  });
+
   const text = await res.text();
   let result: ApiResponse<T>;
   try {
@@ -56,6 +92,7 @@ export async function setupAdminApi(data: { fullName: string; email: string; pas
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
+  if (result.token) setStoredToken(result.token);
   return result.data || result;
 }
 
@@ -65,6 +102,7 @@ export async function loginApi(data: { email: string; password: string }): Promi
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
+  if (result.token) setStoredToken(result.token);
   return result;
 }
 
@@ -88,7 +126,8 @@ export async function resetPasswordApi(data: { email: string; resetCode: string;
 
 export async function logoutApi(): Promise<void> {
   try {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    setStoredToken(undefined);
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
   } catch (e) {
     // Ignore logout errors
   }
@@ -96,7 +135,14 @@ export async function logoutApi(): Promise<void> {
 
 export async function fetchCurrentUserApi(): Promise<any | null> {
   try {
-    const res = await fetch('/api/auth/me');
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch('/api/auth/me', {
+      credentials: 'include',
+      headers
+    });
     if (!res.ok) return null;
     const text = await res.text();
     const result: ApiResponse<any> = JSON.parse(text);
@@ -105,6 +151,7 @@ export async function fetchCurrentUserApi(): Promise<any | null> {
     return null;
   }
 }
+
 
 export async function fetchUsersApi(): Promise<any[]> {
   try {
