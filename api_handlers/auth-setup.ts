@@ -16,10 +16,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   try {
+    const body = await parseJsonBody(req);
+    const { fullName, email, password, setupSecret } = body;
+
     const existingUsers = await db.select().from(schema.users);
     if (existingUsers.length > 0) {
-      const body = await parseJsonBody(req);
-      const { setupSecret } = body;
       const expectedSecret = process.env.INITIAL_ADMIN_SETUP_SECRET || 'admin_setup_secret_2026';
 
       if (!setupSecret || setupSecret !== expectedSecret) {
@@ -31,9 +32,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         );
       }
     }
-
-    const body = await parseJsonBody(req);
-    const { fullName, email, password } = body;
 
     if (!fullName || !email || !password) {
       return sendError(res, 400, 'Full Name, email, and password are required.', 'VALIDATION_ERROR');

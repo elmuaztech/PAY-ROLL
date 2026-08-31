@@ -1,6 +1,14 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 
 export async function parseJsonBody(req: IncomingMessage): Promise<any> {
+  if ((req as any)._parsedBody !== undefined) {
+    return (req as any)._parsedBody;
+  }
+  if ((req as any).body !== undefined && typeof (req as any).body === 'object') {
+    (req as any)._parsedBody = (req as any).body;
+    return (req as any)._parsedBody;
+  }
+
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => {
@@ -8,7 +16,9 @@ export async function parseJsonBody(req: IncomingMessage): Promise<any> {
     });
     req.on('end', () => {
       try {
-        resolve(body ? JSON.parse(body) : {});
+        const parsed = body ? JSON.parse(body) : {};
+        (req as any)._parsedBody = parsed;
+        resolve(parsed);
       } catch (err) {
         reject(new Error('Invalid JSON payload'));
       }
