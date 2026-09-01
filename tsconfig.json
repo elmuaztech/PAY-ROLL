@@ -20,5 +20,5 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "api", "api_handlers"]
+  "include": ["src", "api", "api_handlers", "netlify"]
 }
